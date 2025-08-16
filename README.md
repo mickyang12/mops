@@ -1,0 +1,22 @@
+# 季財報 與 月營收 資料整理（2025-Q2 與 7 月）
+
+## 🔗 整理過的資料
+
+- [2025-Q2 EPS 整理版](https://mickyang12.github.io/mops/mopseps.html)  
+- [2025-07 營收 整理版](https://mickyang12.github.io/mops/mi.html)
+
+---
+
+## 📊 資料來源
+
+### 📈 2025-Q2 EPS 原始資料
+- [上市公司 EPS](https://mopsov.twse.com.tw/mops/web/ajax_t163sb04?encodeURIComponent=1&step=1&firstin=1&off=1&isQuery=Y&TYPEK=sii&year=114&season=02)  
+- [上櫃公司 EPS](https://mopsov.twse.com.tw/mops/web/ajax_t163sb04?encodeURIComponent=1&step=1&firstin=1&off=1&isQuery=Y&TYPEK=otc&year=114&season=02)
+
+### 🧾 2025-07 營收原始資料
+- [上市公司 114 年 7 月營收](https://mopsov.twse.com.tw/nas/t21/sii/t21sc03_114_7_0.html)  
+- [上櫃公司 114 年 7 月營收](https://mopsov.twse.com.tw/nas/t21/otc/t21sc03_114_7_0.html)
+
+---
+
+> 📌 整理後資料皆來自公開資訊觀測站，僅供參考。
