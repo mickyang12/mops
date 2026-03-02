@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>毛利率與淨利率分析圖表</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, "Microsoft JhengHei", sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        #filter-panel {
+            background-color: white;
+            padding: 5px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .filter-group input[type="number"] {
+            width: 80px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+
+        .btn[disabled] {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        #filter-stats {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e7f3ff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #004085;
+        }
+        
+        #charts-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        .chart-wrapper {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 0;
+            /* cursor: move; */
+            cursor: pointer;
+            transition: box-shadow 0.3s, transform 0.1s;
+            position: relative;
+        }
+        
+        .chart-wrapper:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .chart-wrapper.dragging {
+            opacity: 0.7;
+            z-index: 1000;
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+        
+        .chart-canvas {
+            width: 100% !important;
+            height: 250px !important;
+        }
+        
+        #loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .search-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .search-group input[type="text"] {
+            width: 200px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .chart-wrapper.highlight {
+            animation: highlight-pulse 1.5s ease-in-out;
+            border: 3px solid #007bff;
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.5);
+        }
+        
+        @keyframes highlight-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .input-with-tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .input-tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 6px 10px;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .input-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .input-with-tooltip:hover .input-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        @media (max-width: 1400px) {
+            #charts-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        @media (max-width: 1000px) {
+            #charts-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 600px) {
+            #charts-container {
+                grid-template-columns: repeat(1, 1fr);
+            }
+        }
+        
+        #backToTop {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(144, 238, 144, 0.7);
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            font-family: Arial, "Microsoft JhengHei", sans-serif;
+        }
+        
+        #backToTop:hover {
+            background-color: rgba(144, 238, 144, 0.9);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        #backToTop.show {
+            display: block;
+        }
+        
+        /* 關係圖樣式 */
+        #relationship-diagram {
+            background: linear-gradient(135deg, #1e7e8c 0%, #0d4f5c 100%);
+            padding: 30px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        #relationship-diagram h2 {
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .waterfall-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 20px;
+            height: 450px;
+            position: relative;
+        }
+        
+        .waterfall-bar {
+            width: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .bar-stack {
+            width: 100%;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .bar-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 16px;
+            line-height: 1.4;
+            position: relative;
+        }
+        
+        .bar-section.cost {
+            background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+            border-bottom: 2px dashed #2c3e50;
+        }
+        
+        .bar-section.remaining {
+            background: linear-gradient(135deg, #ec7063 0%, #e74c3c 100%);
+        }
+        
+        .bar-section.profit {
+            background: linear-gradient(135deg, #ec7063 0%, #e74c3c 100%);
+        }
+        
+        .bar-section.income {
+            background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+        }
+        
+        .bar-label {
+            margin-top: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+        }
+        
+        .arrow-connector {
+            font-size: 48px;
+            color: #34495e;
+            align-self: center;
+            margin-bottom: 80px;
+            font-weight: bold;
+            transform: translateY(60px);
+        }
+        
+        .bar-stack.height-100 {
+            height: 350px;
+        }
+        
+        .bar-stack.height-80 {
+            height: 280px;
+        }
+        
+        .bar-stack.height-60 {
+            height: 210px;
+        }
+        
+        .bar-stack.height-50 {
+            height: 175px;
+        }
+        
+        .bar-stack.height-40 {
+            height: 140px;
+        }
+        
+        .info-note {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #e74c3c;
+            color: #2c3e50;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .formula-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #1e7e8c;
+        }
+        
+        .formula-box h3 {
+            color: #1e7e8c;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .formula-item {
+            color: #2c3e50;
+            margin: 8px 0;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .formula-item strong {
+            color: #e74c3c;
+        }
+        
+        .bar-label .deduct-text {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        #diagram-toggle-btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #1e7e8c;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 auto;
+            display: block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        #diagram-toggle-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        #diagram-content {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        #diagram-content.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>2025-Q4 毛利率、淨利率、營業收入分析圖表</h1>
+    
+    <!-- 關係圖 -->
+    <div id="relationship-diagram">
+        <button id="diagram-toggle-btn" onclick="toggleDiagram()">▼ 展開 毛利率與淨利率計算瀑布圖</button>
+        
+        <div id="diagram-content">
+        
+        <div class="waterfall-container">
+            <!-- 營業收入 -->
+            <div class="waterfall-bar">
+                <div class="bar-stack height-100">
+                    <div class="bar-section income" style="flex: 1;">
+                        營業<br>收入
+                    </div>
+                </div>
+                <div class="bar-label">營業收入</div>
+            </div>
+            
+            <div class="arrow-connector">⇨</div>
+            
+            <!-- 營業成本 + 營業毛利 -->
+            <div class="waterfall-bar">
+                <div class="bar-stack height-100">
+                    <div class="bar-section cost" style="height: 90px;">
+                        營業<br>成本
+                    </div>
+                    <div class="bar-section remaining" style="flex: 1;">
+                        營業<br>毛利
+                    </div>
+                </div>
+                <div class="bar-label"><span class="deduct-text">扣除</span>營業成本</div>
+            </div>
+            
+            <div class="arrow-connector">⇨</div>
+            
+            <!-- 營業費用 + 營業利益 -->
+            <div class="waterfall-bar">
+                <div class="bar-stack" style="height: 260px;">
+                    <div class="bar-section cost" style="height: 90px;">
+                        營業<br>費用
+                    </div>
+                    <div class="bar-section remaining" style="flex: 1;">
+                        營業<br>利益
+                    </div>
+                </div>
+                <div class="bar-label"><span class="deduct-text">扣除</span>營業費用</div>
+            </div>
+            
+            <div class="arrow-connector">⇨</div>
+            
+            <!-- 業外支出 + 稅前淨利 -->
+            <div class="waterfall-bar">
+                <div class="bar-stack" style="height: 170px;">
+                    <div class="bar-section cost" style="height: 70px;">
+                        業外<br>支出
+                    </div>
+                    <div class="bar-section remaining" style="flex: 1;">
+                        稅前<br>淨利
+                    </div>
+                </div>
+                <div class="bar-label"><span class="deduct-text">扣除</span>業外損益</div>
+            </div>
+            
+            <div class="arrow-connector">⇨</div>
+            
+            <!-- 稅費 + 本期淨利 -->
+            <div class="waterfall-bar">
+                <div class="bar-stack" style="height: 100px;">
+                    <div class="bar-section cost" style="height: 50px;">
+                        稅費
+                    </div>
+                    <div class="bar-section remaining" style="flex: 1; background: #4927F5;">
+                        本期<br>淨利
+                    </div>
+                </div>
+                <div class="bar-label"><span class="deduct-text">扣除</span>稅費</div>
+            </div>
+        </div>
+        
+        <div class="info-note">
+            💡 毛利不夠會導致無法支付費用，連帶著本期淨利也不會提高！
+        </div>
+        
+        <div class="formula-box">
+            <h3>📝 關鍵公式</h3>
+            <div class="formula-item">
+                <strong>毛利率</strong> = (營業毛利 ÷ 營業收入) × 100% = [(營業收入 -(減去) 營業成本) ÷ 營業收入] × 100%
+            </div>
+            <div class="formula-item">
+                <strong><label style="color: #4927F5;">淨利率：</label></strong> = (本期淨利 ÷ 營業收入) × 100%
+            </div>
+            <div class="formula-item">
+                💡 <strong><label style="color: #000000;">利率差值</label></strong> = 毛利率 -(減去) 淨利率(反映營業費用、業外損益及稅金的影響)
+            </div>
+        </div>
+        </div>
+    </div>
+    
+    <!-- 篩選面板 -->
+    <div id="filter-panel">
+        <div class="filter-row">
+            <div style="background-color: rgba(0, 123, 255, 0.15); padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <div class="filter-group" style="background-color: rgba(255, 0, 0, 0.08); padding: 10px; border-radius: 6px;">
+                    <label style="color: #ff0000;">毛利率：</label>
+                    <div class="input-with-tooltip">
+                        <input type="number" id="grossMarginMin" placeholder="最小值" step="0.1" value="0">
+                        <span class="input-tooltip">可以輸入負值，如-100</span>
+                    </div>
+                    <span>%</span>
+                    <span>~</span>
+                    <input type="number" id="grossMarginMax" placeholder="最大值" step="0.1" value="100">
+                    <span>%</span>
+                </div>
+                
+                <div class="filter-group" style="background-color: rgba(73, 39, 245, 0.08); padding: 10px; border-radius: 6px;">
+                    <label style="color: #4927F5;">淨利率：</label>
+                    <div class="input-with-tooltip">
+                        <input type="number" id="netMarginMin" placeholder="最小值" step="0.1" value="0">
+                        <span class="input-tooltip">可以輸入負值，如-100</span>
+                    </div>
+                    <span>%</span>
+                    <span>~</span>
+                    <input type="number" id="netMarginMax" placeholder="最大值" step="0.1" value="100">
+                    <span>%</span>
+                </div>
+                
+                <div class="filter-group" style="background-color: rgba(108, 117, 125, 0.1); padding: 10px; border-radius: 6px;">
+                    <label>利率差值：</label>
+                    <div class="input-with-tooltip">
+                        <input type="number" id="marginDiffMin" placeholder="最小值" step="0.1" value="0">
+                        <span class="input-tooltip">可以輸入負值，如-100</span>
+                    </div>
+                    <span>%</span>
+                    <span>~</span>
+                    <input type="number" id="marginDiffMax" placeholder="最大值" step="0.1" value="100">
+                    <span>%</span>
+                    <span style="font-size: 11px; color: #666;">(毛-淨)</span>
+                </div>
+                
+                <div class="filter-buttons">
+                    <button class="btn btn-primary" onclick="applyFilter()">套用篩選</button>
+                    <button class="btn btn-secondary" onclick="resetFilter()">重設</button>
+                    <button id="toggleEmojiBtn" class="btn btn-secondary" onclick="toggleEmoji()">關閉圖示</button>
+                    <button id="downloadOfflineBtn" class="btn btn-secondary" onclick="downloadOfflinePage()">下載離線版</button>
+                </div>
+            </div>
+            
+            <div class="search-group" style="background-color: rgba(0, 171, 94, 0.1); padding: 10px; border-radius: 6px;">
+                <label>搜尋：</label>
+                <input type="text" id="mopssearchInput" placeholder="公司代號或名稱">
+                <button class="btn btn-primary" onclick="searchCompany()">搜尋</button>
+            </div>
+        </div>
+        
+        <div id="filter-stats" style="display: none;"></div>
+    </div>
+    
+    <div id="loading">載入資料中...</div>
+    <div id="charts-container"></div>
+    
+    <!-- 回到頂端按鈕 -->
+    <button id="backToTop" onclick="scrollToTop()">回到頂端</button>
+
+    <script>
+        // 設定 Chart.js 全域預設值
+        Chart.defaults.backgroundColor = 'white';
+        Chart.defaults.borderColor = '#e0e0e0';
+        Chart.defaults.color = '#333';
+
+        // 全域變數：儲存所有公司資料和圖表映射
+        let allCompaniesData = [];
+        let currentRenderedData = null;
+        let companyChartMap = {}; // 公司代號/名稱 -> 圖表元素的映射
+        let chartInstances = {}; // 儲存 Chart.js 實例，用於懶加載
+        let observerInstance = null; // Intersection Observer 實例
+
+        // emoji 顯示開關（預設顯示）
+        window.__MOPS_SHOW_EMOJI__ = true;
+        
+        // 拖拽相關變數
+        let draggedElement = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        // 載入 JSON 資料並建立圖表（支援離線打包：若 window.__MOPS_OFFLINE_DATA__ 存在就直接使用）
+        async function loadAllCompaniesData() {
+            const offlineData = window.__MOPS_OFFLINE_DATA__;
+            if (Array.isArray(offlineData) && offlineData.length > 0) {
+                allCompaniesData = offlineData;
+                const loading = document.getElementById('loading');
+                loading.style.display = 'none';
+                renderCharts(allCompaniesData);
+                return;
+            }
+
+            //const response = await fetch('mops_margin.json', { cache: 'no-store' });
+            const response = await fetch('mops_margin_json.asp', { cache: 'no-store' });
+            const data = await response.json();
+            allCompaniesData = data;
+
+            const loading = document.getElementById('loading');
+            loading.style.display = 'none';
+
+            // 初始顯示所有圖表
+            renderCharts(allCompaniesData);
+        }
+
+        loadAllCompaniesData().catch(error => {
+            console.error('載入資料失敗:', error);
+            const loading = document.getElementById('loading');
+            loading.innerHTML = '<div style="color: #dc3545;"><strong>❌ 載入資料失敗</strong><br><br>' +
+                               error.message + '<br><br>請檢查：<br>' +
+                               '1. mops_margin.json 是否正常執行<br>' +
+                               '2. 資料庫連線是否正常<br>' +
+                               '3. 開啟瀏覽器 Console (F12) 查看詳細錯誤訊息</div>';
+        });
+
+        // 建立圖表佔位符（懶加載優化）
+        function createChartPlaceholder(container, company, index) {
+            // 建立圖表容器
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chart-wrapper';
+            wrapper.dataset.index = index;
+            wrapper.dataset.loaded = 'false';
+            
+            // 建立自定義標題區域（包含文字和圖片）
+            const titleContainer = document.createElement('div');
+            titleContainer.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 5px; position: relative; z-index: 1; overflow: hidden;';
+            
+            // 標題文字（可點擊）
+            const titleText = document.createElement('span');
+            titleText.style.cssText = 'font-size: 14px; white-space: nowrap; cursor: pointer;';
+            titleText.addEventListener('click', function() {
+                window.open('https://gd.myftp.org/lb/lh.asp?stockno=' + company.companyCode, '_blank');
+            });
+            
+            // 公司代號和名稱（黑色粗體）
+            const companyInfo = document.createElement('span');
+            companyInfo.textContent = company.companyCode + ' ' + company.companyName + ' ';
+            companyInfo.style.cssText = 'font-size: 22px;color: #000; font-weight: bold;';
+            titleText.appendChild(companyInfo);
+            
+            // 收盤價（根據 change 值決定顏色）
+            const priceInfo = document.createElement('span');
+            priceInfo.textContent = company.closePrice;
+            let priceColor = '#000'; // 預設黑色
+            if (company.change > 0) {
+                priceColor = '#ff0000'; // 紅色
+            } else if (company.change < 0) {
+                priceColor = '#00AB5E'; // 綠色
+            }
+            priceInfo.style.cssText = 'font-size: 28px; color: ' + priceColor + '; font-weight: bold;';
+            titleText.appendChild(priceInfo);
+            
+            // 變動值（根據正負決定顏色）
+            const changeInfo = document.createElement('span');
+            let changeColor = '#000'; // 預設黑色
+            let changeText = company.change;
+            if (company.change > 0) {
+                changeColor = '#ff0000'; // 紅色
+                changeText = '+' + company.change;
+            } else if (company.change < 0) {
+                changeColor = '#00AB5E'; // 綠色
+            }
+            changeInfo.textContent = ' (' + changeText + ')';
+            changeInfo.style.cssText = 'font-size: 22px; color: ' + changeColor + '; font-weight: bold;';
+            titleText.appendChild(changeInfo);
+            
+            titleContainer.appendChild(titleText);
+            
+            // 外部圖片（懶加載）
+            const img = document.createElement('img');
+            img.dataset.src = 'https://mickyang12.github.io/DayChart/120DayChart/' + company.companyCode + '.png';
+            img.alt = company.companyCode + ' 120日線圖';
+            img.style.cssText = 'max-height: 20px; height: auto; border-radius: 4px;';
+            img.onerror = function() {
+                this.style.display = 'none';
+            };
+            titleContainer.appendChild(img);
+            
+            // crossDays 資訊顯示（可點擊連結）
+            if (company.crossDays !== undefined && company.crossDays !== null) {
+                const crossDaysInfo = document.createElement('span');
+                crossDaysInfo.textContent = ' W' + company.crossDays + '天'; 
+                const bgColor = company.crossDays > 0 ? 'background-color: yellow; ' : '';
+                crossDaysInfo.style.cssText = bgColor + 'font-size: 22px; color: #993333; font-weight: bold; cursor: pointer; text-decoration: underline;';
+                crossDaysInfo.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    window.open('https://gd.myftp.org/lb/kchart.asp?stockno=' + company.companyCode, '_blank');
+                });
+                titleText.appendChild(crossDaysInfo);
+            }
+            
+            wrapper.appendChild(titleContainer);
+            
+            // 建立 canvas 容器
+            const canvasContainer = document.createElement('div');
+            canvasContainer.style.cssText = 'position: relative; z-index: 10; margin-top: 10px;';
+            
+            // 建立 canvas 元素（但不立即繪製圖表）
+            const canvas = document.createElement('canvas');
+            canvas.id = 'chart-' + index;
+            canvas.className = 'chart-canvas';
+            canvasContainer.appendChild(canvas);
+            wrapper.appendChild(canvasContainer);
+            container.appendChild(wrapper);
+            
+            return wrapper;
+        }
+        
+        // 全域滑鼠移動事件
+        document.addEventListener('mousemove', function(e) {
+            if (draggedElement) {
+                const x = e.clientX - dragOffsetX;
+                const y = e.clientY - dragOffsetY;
+                
+                draggedElement.style.left = x + 'px';
+                draggedElement.style.top = y + 'px';
+                
+                e.preventDefault();
+            }
+        });
+        
+        // 全域滑鼠放開事件
+        document.addEventListener('mouseup', function(e) {
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+                
+                // 檢查是否真的有移動（移動超過5像素才算拖拽）
+                const moved = Math.abs(e.clientX - dragStartX) > 5 || Math.abs(e.clientY - dragStartY) > 5;
+                
+                if (!moved) {
+                    // 沒有移動，恢復原位
+                    draggedElement.style.position = '';
+                    draggedElement.style.left = '';
+                    draggedElement.style.top = '';
+                    draggedElement.style.width = '';
+                    draggedElement.style.zIndex = '';
+                }
+                
+                draggedElement = null;
+            }
+        });
+        
+        // 防止拖拽時選取文字
+        document.addEventListener('selectstart', function(e) {
+            if (draggedElement) {
+                e.preventDefault();
+            }
+        });
+
+        // 實際建立圖表（當元素進入視窗時調用）
+        function loadChart(wrapper, company, index) {
+            // 避免重複載入
+            if (wrapper.dataset.loaded === 'true') return;
+            
+            // 載入圖片（懶加載）
+            const img = wrapper.querySelector('img[data-src]');
+            if (img && img.dataset.src) {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+            }
+            
+            const canvas = wrapper.querySelector('canvas');
+            if (!canvas) return;
+            
+            // 建立圖表
+            const ctx = canvas.getContext('2d');
+            
+            // 從 company.periods 生成標籤，格式轉換為 yy\nQn
+            const labels = company.periods.map(period => {
+                // period 格式為 "2023Q4"
+                const year = period.substring(2, 4); // 取年份後兩位
+                const quarter = period.substring(4); // 取季度部分 (Q4)
+                return year + '' + quarter;
+            });
+            
+            // 找到各項指標的最大值索引
+            const maxNetMarginIndex = company.netMargin.indexOf(Math.max(...company.netMargin));
+            const maxGrossMarginIndex = company.grossMargin.indexOf(Math.max(...company.grossMargin));
+            const maxRevenueIndex = company.revenue.indexOf(Math.max(...company.revenue));
+            
+            const showEmoji = !!window.__MOPS_SHOW_EMOJI__;
+
+            // pointStyle / emoji marker
+            let netMarginPointStyles = company.netMargin.map(() => 'circle');
+            let netMarginPointRadius = company.netMargin.map(() => 3);
+            let netMarginPointHoverRadius = company.netMargin.map(() => 5);
+            let grossMarginPointStyles = company.grossMargin.map(() => 'circle');
+            let grossMarginPointRadius = company.grossMargin.map(() => 3);
+            let grossMarginPointHoverRadius = company.grossMargin.map(() => 5);
+
+            if (showEmoji) {
+                // 創建星星 ⭐ emoji 圖像（淨利率）
+                const starCanvas = document.createElement('canvas');
+                starCanvas.width = 24;
+                starCanvas.height = 24;
+                const starCtx = starCanvas.getContext('2d');
+                starCtx.font = '20px Arial';
+                starCtx.textAlign = 'center';
+                starCtx.textBaseline = 'middle';
+                starCtx.fillText('⭐', 12, 12);
+                const starImage = new Image();
+                starImage.src = starCanvas.toDataURL();
+
+                // 創建金牌 🥇 emoji 圖像（毛利率）
+                const medalCanvas = document.createElement('canvas');
+                medalCanvas.width = 24;
+                medalCanvas.height = 24;
+                const medalCtx = medalCanvas.getContext('2d');
+                medalCtx.font = '20px Arial';
+                medalCtx.textAlign = 'center';
+                medalCtx.textBaseline = 'middle';
+                medalCtx.fillText('🥇', 12, 12);
+                const medalImage = new Image();
+                medalImage.src = medalCanvas.toDataURL();
+
+                // 為淨利率的每個點設定樣式（最大值用星星 emoji）
+                netMarginPointStyles = company.netMargin.map((_, idx) =>
+                    idx === maxNetMarginIndex ? starImage : 'circle'
+                );
+                netMarginPointRadius = company.netMargin.map((_, idx) =>
+                    idx === maxNetMarginIndex ? 12 : 3
+                );
+                netMarginPointHoverRadius = company.netMargin.map((_, idx) =>
+                    idx === maxNetMarginIndex ? 14 : 5
+                );
+
+                // 為毛利率的每個點設定樣式（最大值用金牌 emoji）
+                grossMarginPointStyles = company.grossMargin.map((_, idx) =>
+                    idx === maxGrossMarginIndex ? medalImage : 'circle'
+                );
+                grossMarginPointRadius = company.grossMargin.map((_, idx) =>
+                    idx === maxGrossMarginIndex ? 12 : 3
+                );
+                grossMarginPointHoverRadius = company.grossMargin.map((_, idx) =>
+                    idx === maxGrossMarginIndex ? 14 : 5
+                );
+            }
+            
+            const chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '毛利率 (%)',
+                            data: company.grossMargin,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointStyle: grossMarginPointStyles,
+                            pointRadius: grossMarginPointRadius,
+                            pointHoverRadius: grossMarginPointHoverRadius,
+                            pointBackgroundColor: 'rgb(255, 99, 132)',
+                            pointBorderColor: 'rgb(255, 99, 132)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '淨利率 (%)',
+                            data: company.netMargin,
+                            borderColor: '#4927F5',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointStyle: netMarginPointStyles,
+                            pointRadius: netMarginPointRadius,
+                            pointHoverRadius: netMarginPointHoverRadius,
+                            pointBackgroundColor: '#4927F5',
+                            pointBorderColor: '#4927F5',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '營業收入 (仟元)',
+                            data: company.revenue,
+                            type: 'bar',
+                            backgroundColor: 'rgba(51, 133, 255, 0.5)',
+                            borderColor: '#3385FF',
+                            borderWidth: 1,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                plugins: [{
+                    id: 'fireEmoji',
+                    afterDatasetsDraw: function(chart) {
+                        if (!window.__MOPS_SHOW_EMOJI__) return;
+                        const ctx = chart.ctx;
+                        const meta = chart.getDatasetMeta(2); // 營業收入是第3個dataset (index=2)
+                        
+                        if (meta && meta.data && meta.data[maxRevenueIndex]) {
+                            const bar = meta.data[maxRevenueIndex];
+                            const x = bar.x;
+                            const y = bar.y;
+                            
+                            ctx.save();
+                            ctx.font = '20px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText('🔥', x, y - 5);
+                            ctx.restore();
+                        }
+                    }
+                }, {
+                    id: 'negativeLineSegments',
+                    afterDatasetsDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        const yScale = chart.scales.y;
+                        
+                        // 處理毛利率和淨利率（dataset 0 和 1）
+                        [0, 1].forEach(datasetIndex => {
+                            const meta = chart.getDatasetMeta(datasetIndex);
+                            if (!meta || meta.hidden) return;
+                            
+                            const dataset = chart.data.datasets[datasetIndex];
+                            const data = dataset.data;
+                            const greenColor = '#00FF00';
+                            
+                            ctx.save();
+                            ctx.lineWidth = (dataset.borderWidth || 2) + 1; // 稍微加粗以覆蓋原線
+                            ctx.strokeStyle = greenColor;
+                            ctx.lineCap = 'round';
+                            ctx.lineJoin = 'round';
+                            
+                            const zeroY = yScale.getPixelForValue(0);
+                            
+                            // 遍歷所有數據點
+                            for (let i = 0; i < data.length - 1; i++) {
+                                const currentValue = data[i];
+                                const nextValue = data[i + 1];
+                                
+                                const currentPoint = meta.data[i];
+                                const nextPoint = meta.data[i + 1];
+                                
+                                if (!currentPoint || !nextPoint) continue;
+                                
+                                // 獲取控制點（用於貝茲曲線）
+                                const cp1x = currentPoint.cp2x || currentPoint.x;
+                                const cp1y = currentPoint.cp2y || currentPoint.y;
+                                const cp2x = nextPoint.cp1x || nextPoint.x;
+                                const cp2y = nextPoint.cp1y || nextPoint.y;
+                                
+                                // 情況1: 兩點都小於0，整段綠色
+                                if (currentValue < 0 && nextValue < 0) {
+                                    ctx.beginPath();
+                                    ctx.moveTo(currentPoint.x, currentPoint.y);
+                                    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, nextPoint.x, nextPoint.y);
+                                    ctx.stroke();
+                                }
+                                // 情況2: 穿越0軸（一正一負）
+                                else if ((currentValue < 0 && nextValue >= 0) || (currentValue >= 0 && nextValue < 0)) {
+                                    // 使用二分法找到與0軸的交點參數 t
+                                    let t = 0.5;
+                                    let iterations = 10;
+                                    
+                                    for (let iter = 0; iter < iterations; iter++) {
+                                        // 計算貝茲曲線上 t 位置的 y 值
+                                        const y = Math.pow(1-t, 3) * currentPoint.y +
+                                                  3 * Math.pow(1-t, 2) * t * cp1y +
+                                                  3 * (1-t) * Math.pow(t, 2) * cp2y +
+                                                  Math.pow(t, 3) * nextPoint.y;
+                                        
+                                        if (Math.abs(y - zeroY) < 0.5) break;
+                                        
+                                        if (y > zeroY) {
+                                            if (currentValue < 0) t += Math.pow(0.5, iter + 2);
+                                            else t -= Math.pow(0.5, iter + 2);
+                                        } else {
+                                            if (currentValue < 0) t -= Math.pow(0.5, iter + 2);
+                                            else t += Math.pow(0.5, iter + 2);
+                                        }
+                                    }
+                                    
+                                    // 計算交點座標
+                                    const intersectX = Math.pow(1-t, 3) * currentPoint.x +
+                                                       3 * Math.pow(1-t, 2) * t * cp1x +
+                                                       3 * (1-t) * Math.pow(t, 2) * cp2x +
+                                                       Math.pow(t, 3) * nextPoint.x;
+                                    
+                                    // 繪製負值部分（綠色）
+                                    if (currentValue < 0) {
+                                        // 計算分割後的控制點
+                                        const splitCp1x = currentPoint.x + t * (cp1x - currentPoint.x);
+                                        const splitCp1y = currentPoint.y + t * (cp1y - currentPoint.y);
+                                        const splitCp2x = cp1x + t * (cp2x - cp1x);
+                                        const splitCp2y = cp1y + t * (cp2y - cp1y);
+                                        const splitCp3x = splitCp1x + t * (splitCp2x - splitCp1x);
+                                        const splitCp3y = splitCp1y + t * (splitCp2y - splitCp1y);
+                                        
+                                        ctx.beginPath();
+                                        ctx.moveTo(currentPoint.x, currentPoint.y);
+                                        ctx.bezierCurveTo(splitCp1x, splitCp1y, splitCp3x, splitCp3y, intersectX, zeroY);
+                                        ctx.stroke();
+                                    } else {
+                                        // 計算分割後的控制點
+                                        const splitCp1x = cp1x + t * (cp2x - cp1x);
+                                        const splitCp1y = cp1y + t * (cp2y - cp1y);
+                                        const splitCp2x = cp2x + t * (nextPoint.x - cp2x);
+                                        const splitCp2y = cp2y + t * (nextPoint.y - cp2y);
+                                        const splitCp3x = splitCp1x + t * (splitCp2x - splitCp1x);
+                                        const splitCp3y = splitCp1y + t * (splitCp2y - splitCp1y);
+                                        
+                                        ctx.beginPath();
+                                        ctx.moveTo(intersectX, zeroY);
+                                        ctx.bezierCurveTo(splitCp3x, splitCp3y, splitCp2x, splitCp2y, nextPoint.x, nextPoint.y);
+                                        ctx.stroke();
+                                    }
+                                }
+                            }
+                            
+                            ctx.restore();
+                        });
+                    }
+                }],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    // 顯示實際期間而不是 Q-8, Q-7 等
+                                    const index = context[0].dataIndex;
+                                    return company.periods[index];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: false
+                            },
+                            ticks: {
+                                stepSize: 10,
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                color: function(context) {
+                                    // 如果數值小於 0，使用紅色
+                                    return context.tick.value < 0 ? '#ff0000' : '#666';
+                                },
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: function(context) {
+                                    if (context.tick.value === 0) {
+                                        return '#000000';  // Y軸0的水平線改成黑色
+                                    }
+                                    return 'rgba(200, 200, 200, 0.3)';
+                                },
+                                lineWidth: function(context) {
+                                    if (context.tick.value === 0) {
+                                        return 2;  // Y軸0的水平線寬度
+                                    }
+                                    return 1;
+                                },
+                                borderDash: function(context) {
+                                    if (context.tick.value === 0) {
+                                        return [];  // Y軸0的水平線為實線（不使用虛線）
+                                    }
+                                    return [5, 5];
+                                },
+                                drawBorder: false
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grace: '10%',
+                            title: {
+                                display: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    // 將原始數值乘以 1000 得到真實金額（仟元 -> 元）
+                                    const realValue = value * 1000;
+                                    
+                                    // 判斷數據範圍，動態選擇單位
+                                    if (realValue >= 10000000000000000) {
+                                        // >= 1京，顯示「京」為單位
+                                        const result = realValue / 10000000000000000;
+                                        return (result % 1 === 0 ? result.toFixed(0) : result.toFixed(1)) + '京';
+                                    } else if (realValue >= 1000000000000) {
+                                        // >= 1兆，顯示「兆」為單位
+                                        const result = realValue / 1000000000000;
+                                        return (result % 1 === 0 ? result.toFixed(0) : result.toFixed(1)) + '兆';
+                                    } else if (realValue >= 100000000) {
+                                        // >= 1億，顯示「億」為單位
+                                        const result = realValue / 100000000;
+                                        return (result % 1 === 0 ? result.toFixed(0) : result.toFixed(1)) + '億';
+                                    } else if (realValue >= 10000000) {
+                                        // >= 1千萬，顯示「千萬」為單位
+                                        const result = realValue / 10000000;
+                                        return (result % 1 === 0 ? result.toFixed(0) : result.toFixed(1)) + '千萬';
+                                    } else if (realValue >= 1000000) {
+                                        // >= 1百萬，顯示「百萬」為單位
+                                        const result = realValue / 1000000;
+                                        return (result % 1 === 0 ? result.toFixed(0) : result.toFixed(1)) + '百萬';
+                                    }
+                                    return realValue;
+                                },
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+            
+            // 儲存圖表實例
+            chartInstances[index] = chartInstance;
+            
+            // 標記為已載入
+            wrapper.dataset.loaded = 'true';
+        }
+
+        // 初始化 Intersection Observer（懶加載觀察器）
+        function initIntersectionObserver(filteredData) {
+            // 清除舊的 observer
+            if (observerInstance) {
+                observerInstance.disconnect();
+            }
+            
+            // 創建新的 observer
+            observerInstance = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const wrapper = entry.target;
+                        const index = parseInt(wrapper.dataset.index);
+                        const company = filteredData[index];
+                        
+                        if (company && wrapper.dataset.loaded === 'false') {
+                            loadChart(wrapper, company, index);
+                        }
+                    }
+                });
+            }, {
+                root: null,
+                rootMargin: '200px', // 提前 200px 開始載入
+                threshold: 0.01
+            });
+            
+            // 觀察所有圖表容器
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                observerInstance.observe(wrapper);
+            });
+        }
+
+        // 渲染圖表函式（支援篩選 + 懶加載）
+        function renderCharts(filteredData) {
+            const container = document.getElementById('charts-container');
+
+            currentRenderedData = filteredData;
+            
+            // 銷毀所有現有的圖表實例
+            Object.values(chartInstances).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
+            
+            // 清空容器和映射
+            container.innerHTML = '';
+            companyChartMap = {};
+            chartInstances = {};
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            // 為每筆資料建立圖表佔位符（不立即建立圖表）
+            filteredData.forEach((company, index) => {
+                try {
+                    const chartElement = createChartPlaceholder(container, company, index);
+                    
+                    // 建立公司代號和名稱到圖表元素的映射
+                    companyChartMap[company.companyCode] = chartElement;
+                    companyChartMap[company.companyName] = chartElement;
+                    companyChartMap[company.companyCode + company.companyName] = chartElement;
+                    
+                    successCount++;
+                } catch (error) {
+                    errorCount++;
+                    console.error('建立圖表佔位符失敗 (索引 ' + index + '):', error);
+                    console.error('問題資料:', company);
+                }
+            });
+            
+            console.log('圖表佔位符建立完成: 成功 ' + successCount + ' 筆，失敗 ' + errorCount + ' 筆');
+            console.log('圖表將在滾動到可見區域時自動載入');
+            
+            if (errorCount > 0) {
+                const errorMsg = document.createElement('div');
+                errorMsg.style.cssText = 'background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 20px; border-radius: 5px; color: #856404;';
+                errorMsg.innerHTML = '<strong>⚠️ 警告：</strong> 部分資料載入失敗 (' + errorCount + ' 筆)，請檢查 Console 查看詳細資訊';
+                const filterPanel = document.getElementById('filter-panel');
+                filterPanel.parentNode.insertBefore(errorMsg, filterPanel.nextSibling);
+            }
+            
+            // 更新統計資訊
+            updateFilterStats(filteredData.length, allCompaniesData.length);
+            
+            // 初始化懶加載觀察器
+            initIntersectionObserver(filteredData);
+        }
+
+        function updateEmojiToggleButton() {
+            const btn = document.getElementById('toggleEmojiBtn');
+            if (!btn) return;
+            btn.textContent = window.__MOPS_SHOW_EMOJI__ ? '關閉圖示' : '顯示圖示';
+        }
+
+        function toggleEmoji() {
+            window.__MOPS_SHOW_EMOJI__ = !window.__MOPS_SHOW_EMOJI__;
+            updateEmojiToggleButton();
+
+            // 若已載入資料，重新渲染目前視圖（保留篩選結果）
+            if (Array.isArray(currentRenderedData) && currentRenderedData.length > 0) {
+                renderCharts(currentRenderedData);
+            }
+        }
+
+        // 檢查公司是否符合篩選條件
+        function isCompanyMatch(company, grossMin, grossMax, netMin, netMax, diffMin, diffMax) {
+            // 檢查所有 8 季毛利率是否都在區間內
+            if (grossMin !== null || grossMax !== null) {
+                for (let i = 0; i < company.grossMargin.length; i++) {
+                    const value = company.grossMargin[i];
+                    if (grossMin !== null && value < grossMin) return false;
+                    if (grossMax !== null && value > grossMax) return false;
+                }
+            }
+            
+            // 檢查所有 8 季淨利率是否都在區間內
+            if (netMin !== null || netMax !== null) {
+                for (let i = 0; i < company.netMargin.length; i++) {
+                    const value = company.netMargin[i];
+                    if (netMin !== null && value < netMin) return false;
+                    if (netMax !== null && value > netMax) return false;
+                }
+            }
+            
+            // 檢查所有 8 季毛利率與淨利率的差值是否都在區間內
+            if (diffMin !== null || diffMax !== null) {
+                for (let i = 0; i < company.grossMargin.length; i++) {
+                    const diff = company.grossMargin[i] - company.netMargin[i];
+                    if (diffMin !== null && diff < diffMin) return false;
+                    if (diffMax !== null && diff > diffMax) return false;
+                }
+            }
+            
+            return true;
+        }
+
+        // 套用篩選
+        function applyFilter() {
+            // 取得篩選條件
+            const grossMinInput = document.getElementById('grossMarginMin').value;
+            const grossMaxInput = document.getElementById('grossMarginMax').value;
+            const netMinInput = document.getElementById('netMarginMin').value;
+            const netMaxInput = document.getElementById('netMarginMax').value;
+            const diffMinInput = document.getElementById('marginDiffMin').value;
+            const diffMaxInput = document.getElementById('marginDiffMax').value;
+            
+            const grossMin = grossMinInput !== '' ? parseFloat(grossMinInput) : null;
+            const grossMax = grossMaxInput !== '' ? parseFloat(grossMaxInput) : null;
+            const netMin = netMinInput !== '' ? parseFloat(netMinInput) : null;
+            const netMax = netMaxInput !== '' ? parseFloat(netMaxInput) : null;
+            const diffMin = diffMinInput !== '' ? parseFloat(diffMinInput) : null;
+            const diffMax = diffMaxInput !== '' ? parseFloat(diffMaxInput) : null;
+            
+            // 驗證輸入
+            if (grossMin !== null && grossMax !== null && grossMin > grossMax) {
+                alert('毛利率最小值不能大於最大值');
+                return;
+            }
+            
+            if (netMin !== null && netMax !== null && netMin > netMax) {
+                alert('淨利率最小值不能大於最大值');
+                return;
+            }
+            
+            if (diffMin !== null && diffMax !== null && diffMin > diffMax) {
+                alert('利率差值最小值不能大於最大值');
+                return;
+            }
+            
+            // 篩選資料
+            const filteredData = allCompaniesData.filter(company => 
+                isCompanyMatch(company, grossMin, grossMax, netMin, netMax, diffMin, diffMax)
+            );
+            
+            // 渲染篩選後的圖表
+            renderCharts(filteredData);
+        }
+
+        // 重設篩選
+        function resetFilter() {
+            // 清空輸入欄位
+            document.getElementById('grossMarginMin').value = '';
+            document.getElementById('grossMarginMax').value = '';
+            document.getElementById('netMarginMin').value = '';
+            document.getElementById('netMarginMax').value = '';
+            document.getElementById('marginDiffMin').value = '';
+            document.getElementById('marginDiffMax').value = '';
+            
+            // 顯示所有圖表
+            renderCharts(allCompaniesData);
+        }
+
+        // 更新篩選統計資訊
+        function updateFilterStats(displayCount, totalCount) {
+            const statsDiv = document.getElementById('filter-stats');
+            
+            if (displayCount === totalCount) {
+                statsDiv.style.display = 'none';
+            } else {
+                statsDiv.style.display = 'block';
+                statsDiv.innerHTML = '📊 顯示 <strong>' + displayCount + '</strong> 筆，共 <strong>' + totalCount + '</strong> 筆資料';
+            }
+        }
+
+        // 搜尋公司並將圖表滾動到螢幕中央
+        function searchCompany() {
+            const searchText = document.getElementById('mopssearchInput').value.trim();
+            
+            if (!searchText) {
+                alert('請輸入搜尋關鍵字');
+                return;
+            }
+            
+            // 移除之前的高亮
+            document.querySelectorAll('.chart-wrapper.highlight').forEach(el => {
+                el.classList.remove('highlight');
+            });
+            
+            // 搜尋匹配的公司
+            let found = false;
+            for (const [key, element] of Object.entries(companyChartMap)) {
+                if (key.includes(searchText)) {
+                    // 找到匹配，滾動到螢幕中央
+                    element.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                    
+                    // 添加高亮效果
+                    element.classList.add('highlight');
+                    
+                    // 3秒後移除高亮
+                    setTimeout(() => {
+                        element.classList.remove('highlight');
+                    }, 3000);
+                    
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                alert('找不到符合的公司：' + searchText);
+            }
+        }
+
+        // 回到頂端功能
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+        
+        // 切換流程圖顯示/隱藏
+        function toggleDiagram() {
+            const content = document.getElementById('diagram-content');
+            const btn = document.getElementById('diagram-toggle-btn');
+            
+            if (content.classList.contains('show')) {
+                content.classList.remove('show');
+                btn.textContent = '▼ 展開 毛利率與淨利率計算瀑布圖';
+            } else {
+                content.classList.add('show');
+                btn.textContent = '▲ 收合 毛利率與淨利率計算瀑布圖';
+            }
+        }
+        
+        // 監聽滾動事件，控制按鈕顯示/隱藏
+        window.addEventListener('scroll', function() {
+            const backToTopBtn = document.getElementById('backToTop');
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('show');
+            } else {
+                backToTopBtn.classList.remove('show');
+            }
+        });
+        
+        // 支援 Enter 鍵觸發篩選和搜尋
+        document.addEventListener('DOMContentLoaded', function() {
+            updateEmojiToggleButton();
+
+            const filterInputs = document.querySelectorAll('#filter-panel input[type="number"]');
+            filterInputs.forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        applyFilter();
+                    }
+                });
+                // 當 focus 時選取全部內容
+                input.addEventListener('focus', function() {
+                    this.select();
+                });
+            });
+            
+            const mopssearchInput = document.getElementById('mopssearchInput');
+            if (mopssearchInput) {
+                mopssearchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchCompany();
+                    }
+                });
+                // 當 focus 時選取全部內容
+                mopssearchInput.addEventListener('focus', function() {
+                    this.select();
+                });
+            }
+        });
+
+        function escapeHtmlForScriptTag(text) {
+            // Avoid breaking out of <script> in downloaded HTML
+            return text.replace(/<\//g, '<\\/');
+        }
+
+        async function fetchText(url) {
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('fetch failed: ' + url + ' (' + res.status + ')');
+            return await res.text();
+        }
+
+        function downloadTextFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        async function downloadOfflinePage() {
+            const btn = document.getElementById('downloadOfflineBtn');
+            if (!btn) return;
+
+            if (!Array.isArray(allCompaniesData) || allCompaniesData.length === 0) {
+                alert('資料尚未載入完成，請稍後再試');
+                return;
+            }
+
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '打包中...';
+
+            try {
+                // Build a standalone HTML document from current page
+                const parser = new DOMParser();
+                const doc = parser.parseFromString('<!DOCTYPE html>\n' + document.documentElement.outerHTML, 'text/html');
+
+                // Remove download button from exported file
+                const exportedDownloadBtn = doc.getElementById('downloadOfflineBtn');
+                if (exportedDownloadBtn && exportedDownloadBtn.parentNode) {
+                    exportedDownloadBtn.parentNode.removeChild(exportedDownloadBtn);
+                }
+
+                // Offline export: remove 120-day chart <img> entirely (avoid lazy-load/network and empty tags)
+                Array.from(doc.querySelectorAll('img')).forEach(img => {
+                    const alt = (img.getAttribute('alt') || '');
+                    const src = (img.getAttribute('src') || '');
+                    const dataSrc = (img.getAttribute('data-src') || '');
+                    if (alt.includes('120日線圖') || src.includes('120DayChart') || dataSrc.includes('120DayChart')) {
+                        img.remove();
+                    }
+                });
+
+                // Inline external scripts (Chart.js CDN)
+                const externalScripts = Array.from(doc.querySelectorAll('script[src]'));
+                for (const s of externalScripts) {
+                    const src = s.getAttribute('src');
+                    if (!src) continue;
+                    btn.textContent = '內嵌 script...';
+                    const code = await fetchText(src);
+                    s.removeAttribute('src');
+                    s.text = code;
+                }
+
+                // Offline export: do NOT embed 120-day PNG images (we remove the <img> entirely)
+                const pngMap = {};
+
+                // Embed current JSON + PNG map
+                const dataScript = doc.createElement('script');
+                dataScript.text =
+                    'window.__MOPS_OFFLINE_DATA__ = ' + escapeHtmlForScriptTag(JSON.stringify(allCompaniesData)) + ';\n' +
+                    'window.__MOPS_OFFLINE_PNG_MAP__ = ' + escapeHtmlForScriptTag(JSON.stringify(pngMap)) + ';\n' +
+                    'window.__MOPS_OFFLINE__ = true;';
+
+                // Inject an override for offline-only DOM tweaks
+                const offlineOverrideScript = doc.createElement('script');
+                offlineOverrideScript.text =
+                    '(function(){\n' +
+                    '  try {\n' +
+                    '    if (!window.__MOPS_OFFLINE__) return;\n' +
+                    '    function __patchOnce(){\n' +
+                    '      if (!window.__MOPS_OFFLINE__) return true;\n' +
+                    '      if (typeof window.createChartPlaceholder !== "function") return false;\n' +
+                    '      var original = window.createChartPlaceholder;\n' +
+                    '      window.createChartPlaceholder = function(container, company, index) {\n' +
+                    '        var wrapper = original(container, company, index);\n' +
+                    '        try {\n' +
+                    '          // title: force only companyCode + companyName\n' +
+                    '          var titleContainer = wrapper && wrapper.firstElementChild ? wrapper.firstElementChild : null;\n' +
+                    '          var titleText = titleContainer && titleContainer.querySelector ? titleContainer.querySelector("span") : null;\n' +
+                    '          if (titleText && company && company.companyCode && company.companyName) {\n' +
+                    '            titleText.innerHTML = "<span style=\\\"font-size: 22px;color: #000; font-weight: bold;\\\">" +\n' +
+                    '              company.companyCode + " " + company.companyName + " \\u003C/span>";\n' +
+                    '          }\n' +
+                    '          // image: remove 120-day chart <img> entirely\n' +
+                    '          var imgs = wrapper && wrapper.querySelectorAll ? wrapper.querySelectorAll("img") : [];\n' +
+                    '          for (var i = 0; i < imgs.length; i++) {\n' +
+                    '            var alt = imgs[i].getAttribute ? (imgs[i].getAttribute("alt") || "") : "";\n' +
+                    '            if (alt.indexOf("120日線圖") !== -1) { imgs[i].remove(); }\n' +
+                    '          }\n' +
+                    '        } catch (e) {}\n' +
+                    '        return wrapper;\n' +
+                    '      };\n' +
+                    '      return true;\n' +
+                    '    }\n' +
+                    '    if (!__patchOnce()) {\n' +
+                    '      var tries = 0;\n' +
+                    '      var timer = setInterval(function(){\n' +
+                    '        tries++;\n' +
+                    '        if (__patchOnce() || tries > 80) { clearInterval(timer); }\n' +
+                    '      }, 50);\n' +
+                    '    }\n' +
+                    '  } catch (e) {}\n' +
+                    '})();';
+
+                // Place data script before the main inline script
+                const inlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
+                let inserted = false;
+                for (const s of inlineScripts) {
+                    const t = (s.textContent || '');
+                    if (t.includes("mops_margin.json") || t.includes('loadAllCompaniesData')) {
+                        s.parentNode.insertBefore(dataScript, s);
+                        s.parentNode.insertBefore(offlineOverrideScript, s);
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) {
+                    (doc.body || doc.documentElement).appendChild(dataScript);
+                    (doc.body || doc.documentElement).appendChild(offlineOverrideScript);
+                }
+
+
+                // Offline export: never keep lazy-loading attributes
+                Array.from(doc.querySelectorAll('img[data-src]')).forEach(img => {
+                    img.removeAttribute('data-src');
+                });
+
+                // Patch inline scripts so createChartPlaceholder never constructs remote PNG URLs in the offline file
+                const allInlineScripts = Array.from(doc.querySelectorAll('script:not([src])'));
+                const mainScript = allInlineScripts.find(s => (s.textContent || '').includes('function createChartPlaceholder'));
+                if (mainScript) {
+                    let t = mainScript.textContent || '';
+
+                    // Remove price/change spans in offline exported file title (no code, no UI)
+                    t = t.replace(/\n\s*\/\/\s*收盤價[\s\S]*?titleText\.appendChild\(changeInfo\);\s*/g, '\n');
+
+                    // Remove 120-day chart <img> creation block in offline exported file
+                    t = t.replace(/\n\s*\/\/\s*外部圖片（懶加載）[\s\S]*?titleContainer\.appendChild\(img\);\s*/g, '\n');
+
+                    // Offline: disable image lazy-load in loadChart to avoid any network activity
+                    t = t.replace(
+                        /\n\s*\/\/\s*載入圖片（懶加載）\s*\n\s*const\s+img\s*=\s*wrapper\.querySelector\('img\[data-src\]'\);\s*\n\s*if\s*\(img\s*&&\s*img\.dataset\.src\)\s*\{\s*\n\s*img\.src\s*=\s*img\.dataset\.src;\s*\n\s*img\.removeAttribute\('data-src'\);\s*\n\s*\}\s*/,
+                        "\n            // 載入圖片（懶加載）\n            if (!window.__MOPS_OFFLINE__) {\n                const img = wrapper.querySelector('img[data-src]');\n                if (img && img.dataset.src) {\n                    img.src = img.dataset.src;\n                    img.removeAttribute('data-src');\n                }\n            } else {\n                const img = wrapper.querySelector('img[data-src]');\n                if (img) { img.removeAttribute('data-src'); }\n            }\n"
+                    );
+
+                    // Replace the hard-coded remote png builder with offline map usage
+                    t = t.replace(
+                        /img\.dataset\.src\s*=\s*['"][^'"]*120DayChart\/['"]\s*\+\s*company\.companyCode\s*\+\s*['"]\\.png['"];?/g,
+                        "const __pngMap = window.__MOPS_OFFLINE_PNG_MAP__;\n            if (window.__MOPS_OFFLINE__ && __pngMap && __pngMap[company.companyCode]) {\n                img.src = __pngMap[company.companyCode];\n                img.removeAttribute('data-src');\n            } else {\n                img.style.display = 'none';\n                img.removeAttribute('data-src');\n            }"
+                    );
+
+
+                    mainScript.textContent = t;
+                }
+
+                // Strip packager functions from the exported file to avoid leaking original URLs/implementation
+                // Remove everything from the packager marker to the end of that script.
+                for (const s of allInlineScripts) {
+                    const txt = s.textContent || '';
+                    const marker = txt.indexOf('function escapeHtmlForScriptTag');
+                    if (marker !== -1) {
+                        s.textContent = txt.slice(0, marker);
+                    }
+                }
+
+
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                const filename = 'mopscharts_offline_' +
+                    now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '_' +
+                    pad(now.getHours()) + pad(now.getMinutes()) + '.html';
+
+                btn.textContent = '產生檔案...';
+                let html = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+
+
+                downloadTextFile(filename, html, 'text/html;charset=utf-8');
+
+                btn.textContent = originalText;
+            } catch (e) {
+                console.error(e);
+                alert('下載失敗：' + (e && e.message ? e.message : e));
+                btn.textContent = originalText;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
